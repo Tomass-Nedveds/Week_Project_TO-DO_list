@@ -1,0 +1,58 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Write production environment file
+        shell: bash
+        env:
+          POSTGRES_DB: ${{ secrets.PROD_POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.PROD_POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.PROD_POSTGRES_PASSWORD }}
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.PROD_CLOUDFLARE_TUNNEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          for name in POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD DATABASE_URL CLOUDFLARE_TUNNEL_TOKEN; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Missing required GitHub Actions secret for $name" >&2
+              exit 1
+            fi
+          done
+          umask 077
+          {
+            printf 'POSTGRES_DB=%s\n' "$POSTGRES_DB"
+            printf 'POSTGRES_USER=%s\n' "$POSTGRES_USER"
+            printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD"
+            printf 'DATABASE_URL=%s\n' "$DATABASE_URL"
+            printf 'CLOUDFLARE_TUNNEL_TOKEN=%s\n' "$CLOUDFLARE_TUNNEL_TOKEN"
+          } > .env
+
+      - name: Validate production Compose configuration
+        run: docker compose --env-file .env -f compose.prod.yaml config --quiet
+
+      - name: Start or update PostgreSQL
+        run: docker compose --env-file .env -f compose.prod.yaml up -d db
+
+      - name: Build and update application
+        run: docker compose --env-file .env -f compose.prod.yaml up -d --build --no-deps frontend backend
+
+      - name: Start or update Cloudflare Tunnel
+        run: docker compose --env-file .env -f compose.prod.yaml up -d cloudflared
