@@ -32,3 +32,27 @@ todo-app/
 ├── compose.yaml
 └── README.md
 ```
+## Databse
+
+┌─────────────────────┐
+│        users        │
+├─────────────────────┤
+│ PK id               │
+│    username         │
+│    email            │
+│    password_hash    │
+│    created_at       │
+└──────────┬──────────┘
+           │ 1
+           │
+           │ N
+┌──────────▼──────────┐
+│        tasks        │
+├─────────────────────┤
+│ PK id               │
+│ FK user_id          │
+│    title            │
+│    description      │
+│    is_completed     │
+│    created_at       │
+└─────────────────────┘
