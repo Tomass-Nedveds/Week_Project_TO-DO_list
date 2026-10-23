@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Body, FastAPI, HTTPException
 
-from . import fun
+from . import fun as crud
 from .init_db import init_db
 
 
@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Todo API",
+    title="Todo API",/api/docs
     version="0.1.0",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
